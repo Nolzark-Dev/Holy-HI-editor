@@ -14,22 +14,19 @@ int line_count = 0;
 int current_line = 0;
 int current_column = 0;
 char clipboard[MAX_LINE_LENGTH] = "";
-int is_modified = 0;
 char current_filename[MAX_FILENAME_LENGTH] = "";
 
-enum Mode { NORMAL, INSERT };
+enum Mode { NORMAL, VIEW };
 enum Mode current_mode = NORMAL;
 
 struct termios orig_termios;
 
-// ANSI color codes
+// ANSI color codes and screen clearing
 #define RESET "\x1b[0m"
-#define RED "\x1b[31m"
-#define GREEN "\x1b[32m"
-#define YELLOW "\x1b[33m"
 #define BLUE "\x1b[34m"
+#define GREEN "\x1b[32m"
 #define MAGENTA "\x1b[35m"
-#define CYAN "\x1b[36m"
+#define CLEAR_SCREEN "\x1b[2J\x1b[H"
 
 void disable_raw_mode() {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
@@ -52,10 +49,10 @@ int read_key() {
         if (read(STDIN_FILENO, &seq[1], 1) != 1) return '\x1b';
         if (seq[0] == '[') {
             switch (seq[1]) {
-                case 'A': return 's';  // Up arrow
-                case 'B': return 'x';  // Down arrow
-                case 'C': return 'c';  // Right arrow
-                case 'D': return 'z';  // Left arrow
+                case 'A': return 'k';  // Up arrow
+                case 'B': return 'j';  // Down arrow
+                case 'C': return 'l';  // Right arrow
+                case 'D': return 'h';  // Left arrow
             }
         }
         return '\x1b';
@@ -112,138 +109,70 @@ void print_syntax_highlighted(const char* line) {
 
 void print_line(int line_number) {
     if (line_number >= 0 && line_number < line_count) {
-        printf("%d\t", line_number + 1);
+        printf("%3d ", line_number + 1);
         print_syntax_highlighted(lines[line_number]);
-    }
-}
-
-void insert_line(int line_number, const char* text) {
-    if (line_count < MAX_LINES) {
-        for (int i = line_count; i > line_number; i--) {
-            strcpy(lines[i], lines[i - 1]);
-        }
-        strncpy(lines[line_number], text, MAX_LINE_LENGTH - 1);
-        lines[line_number][MAX_LINE_LENGTH - 1] = '\0';
-        line_count++;
-        is_modified = 1;
-    } else {
-        printf("Error: Maximum number of lines reached.\n");
-    }
-}
-
-void delete_line(int line_number) {
-    if (line_number >= 0 && line_number < line_count) {
-        for (int i = line_number; i < line_count - 1; i++) {
-            strcpy(lines[i], lines[i + 1]);
-        }
-        line_count--;
-        is_modified = 1;
-    }
-}
-
-void print_all_lines() {
-    for (int i = 0; i < line_count; i++) {
-        print_line(i);
         printf("\n");
     }
-}
-
-void save_file() {
-    if (current_filename[0] == '\0') {
-        printf("No file name specified. Please use ':w filename' to save.\n");
-        return;
-    }
-
-    FILE* file = fopen(current_filename, "w");
-    if (file == NULL) {
-        printf("Error: Unable to open file for writing.\n");
-        return;
-    }
-    for (int i = 0; i < line_count; i++) {
-        fputs(lines[i], file);
-    }
-    fclose(file);
-    is_modified = 0;
-    printf("File saved successfully.\n");
 }
 
 void load_file(const char* filename) {
     FILE* file = fopen(filename, "r");
     if (file == NULL) {
         printf("Error: Unable to open file for reading.\n");
-        return;
+        exit(1);
     }
     line_count = 0;
     while (fgets(lines[line_count], MAX_LINE_LENGTH, file) && line_count < MAX_LINES) {
         line_count++;
     }
     fclose(file);
-    is_modified = 0;
     strncpy(current_filename, filename, MAX_FILENAME_LENGTH - 1);
     current_filename[MAX_FILENAME_LENGTH - 1] = '\0';
-    printf("File loaded successfully.\n");
 }
 
 void handle_normal_mode(int c) {
     switch (c) {
-        case 'i':
-            current_mode = INSERT;
-            printf("-- INSERT --\n");
-            break;
-        case 's':
-            if (current_line > 0) current_line--;
-            break;
-        case 'x':
+        case 'j':
             if (current_line < line_count - 1) current_line++;
             break;
-        case 'z':
+        case 'k':
+            if (current_line > 0) current_line--;
+            break;
+        case 'h':
             if (current_column > 0) current_column--;
             break;
-        case 'c':
+        case 'l':
             if (current_column < strlen(lines[current_line]) - 1) current_column++;
             break;
-        case 'd':
-            if (line_count > 0) {
-                delete_line(current_line);
-                if (current_line >= line_count) current_line = line_count - 1;
-            }
-            break;
-        case 'C':
+        case 'y':
             if (line_count > 0) {
                 strncpy(clipboard, lines[current_line], MAX_LINE_LENGTH);
                 printf("Line copied.\n");
             }
             break;
-        case 'v':
-            if (clipboard[0] != '\0') {
-                insert_line(current_line + 1, clipboard);
-                current_line++;
-                printf("Line pasted.\n");
-            }
+        case 'p':
+            printf("Paste operation not allowed in read-only mode.\n");
             break;
     }
 }
 
-void handle_insert_mode(int c) {
-    if (c == 27) {  // ESC key
-        current_mode = NORMAL;
-        printf("-- NORMAL --\n");
-    } else if (c == '\n') {
-        insert_line(current_line + 1, "\n");
-        current_line++;
-        current_column = 0;
-    } else {
-        char input[2] = {c, '\0'};
-        if (line_count == 0) {
-            insert_line(0, input);
-        } else {
-            memmove(&lines[current_line][current_column + 1], &lines[current_line][current_column], 
-                    MAX_LINE_LENGTH - current_column - 1);
-            lines[current_line][current_column] = c;
-            current_column++;
-        }
-        is_modified = 1;
+void refresh_screen() {
+    printf(CLEAR_SCREEN);
+    printf("Read-only 'ed' text editor (inspired by TempleOS and Vim)\n");
+    printf("Viewing file: %s\n", current_filename);
+    printf("Navigation: j (down), k (up), h (left), l (right)\n");
+    printf("Commands: y (copy), p (paste - disabled)\n");
+    printf("Press q to quit\n");
+    printf("-- NORMAL --\n\n");
+
+    int start_line = (current_line > 10) ? current_line - 10 : 0;
+    int end_line = (start_line + 20 < line_count) ? start_line + 20 : line_count;
+
+    for (int i = start_line; i < end_line; i++) {
+        print_line(i);
     }
+
+    printf("\nCurrent position: %d,%d\n", current_line + 1, current_column + 1);
 }
 
 int main(int argc, char* argv[]) {
@@ -253,44 +182,21 @@ int main(int argc, char* argv[]) {
     }
 
     load_file(argv[1]);
-
     enable_raw_mode();
-    printf("Modal 'ed' text editor (inspired by TempleOS and Vim)\n");
-    printf("Editing file: %s\n", current_filename);
-    printf("Navigation: s (up), x (down), z (left), c (right)\n");
-    printf("Commands: C (copy), v (paste)\n");
-    printf("Press ESC in normal mode to save and exit\n");
-    printf("Press Shift+ESC in normal mode to exit without saving\n");
-    printf("-- NORMAL --\n");
 
     while (1) {
-        printf("\r\n%d,%d\t", current_line + 1, current_column + 1);
-        print_syntax_highlighted(lines[current_line]);
-        printf("\n");
+        refresh_screen();
         
         int c = read_key();
 
-        if (current_mode == NORMAL && c == 27) {  // ESC key in normal mode
-            int next = read_key();
-            if (next == 27) {  // Shift+ESC
-                printf("Exit without saving? (y/n): ");
-                char confirm = getchar();
-                if (confirm == 'y' || confirm == 'Y') {
-                    break;
-                }
-            } else {
-                if (is_modified) {
-                    save_file();
-                }
-                break;
-            }
-        } else if (current_mode == NORMAL) {
+        if (c == 'q') {
+            break;
+        } else {
             handle_normal_mode(c);
-        } else if (current_mode == INSERT) {
-            handle_insert_mode(c);
         }
     }
 
     disable_raw_mode();
+    printf(CLEAR_SCREEN);
     return 0;
 }
