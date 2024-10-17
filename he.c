@@ -11,6 +11,7 @@
 #define MAX_CLIPBOARD 10000
 #define MAX_COMPLETIONS 100
 #define MAX_COMPLETION_LENGTH 50
+#define LINE_NUMBER_WIDTH 4  // Width of the line number column
 
 char* lines[MAX_LINES];
 int num_lines = 0;
@@ -110,8 +111,6 @@ void insert_line() {
     }
 }
 
-
-
 void draw_screen() {
     clear();
 
@@ -119,6 +118,10 @@ void draw_screen() {
     for (int i = 0; i < max_lines && i + top_line < num_lines; i++) {
         move(i, 0);
         
+        // Draw line numbers
+        attron(COLOR_PAIR(2));  // Use color pair 2 for line numbers
+        mvprintw(i, 0, "%*d ", LINE_NUMBER_WIDTH, i + top_line + 1);
+        attroff(COLOR_PAIR(2));
         
         char* current_line = lines[i + top_line];
         
@@ -131,7 +134,6 @@ void draw_screen() {
         
         // Apply syntax highlighting to the line
         highlight_syntax(stdscr, temp_line);
-        
         
         clrtoeol();
     }
@@ -149,12 +151,10 @@ void draw_screen() {
     mvprintw(LINES - 1, 0, "%s", status_message);
     attroff(COLOR_PAIR(2));
 
-    move(cursor_y - top_line, cursor_x);
+    // Adjust cursor position to account for line numbers
+    move(cursor_y - top_line, cursor_x + LINE_NUMBER_WIDTH + 1);
     refresh();
 }
-
-
-
 
 void handle_exit(int save) {
     if (save) {
@@ -185,7 +185,7 @@ void handle_normal_mode(int ch) {
             else if (strcmp(command, "q") == 0) handle_exit(0);
             break;
         case 27: // ESC key
-	    clear();
+            clear();
             handle_exit(1); // Save exit
             break;
     }
@@ -276,8 +276,8 @@ int main(int argc, char* argv[]) {
                 }
             } else if (next_ch == 27) {
                 // Shift+ESC was pressed 
-                    clear();
-		    handle_exit(0); // Exit without saving
+                clear();
+                handle_exit(0); // Exit without saving
             }
         } else if (mode == 'n') {
             handle_normal_mode(ch);
