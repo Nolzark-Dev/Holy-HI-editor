@@ -20,7 +20,7 @@ chmod +x install.sh
 ```
 
 
-Feature Checklist
+## Feature Checklist
 - [ ] fix jitttery screen
 - [x] add home screen properly
 - [ ] add copy and paste commands in eden mode (c and v)
