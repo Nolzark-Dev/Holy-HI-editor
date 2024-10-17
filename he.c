@@ -257,5 +257,6 @@ int main(int argc, char* argv[]) {
         if (cursor_y >= top_line + LINES - 1) top_line = cursor_y - LINES + 2;
     }
 
+clear();
     return 0;
 }
