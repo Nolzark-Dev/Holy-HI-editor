@@ -32,8 +32,8 @@ void init_editor() {
     keypad(stdscr, TRUE);
     start_color();
     use_default_colors();
-    init_pair(1, COLOR_BLACK, COLOR_YELLOW);
-    init_pair(2, COLOR_WHITE, COLOR_WHITE);
+    init_pair(1, COLOR_WHITE, COLOR_YELLOW);
+    init_pair(2, COLOR_GREEN, COLOR_BLACK);
     init_syntax_highlight();
 }
 
@@ -115,7 +115,7 @@ void insert_line() {
 void draw_screen() {
     clear();
 
-     int max_lines = LINES - 1;
+    int max_lines = LINES - 2; // Reserve bottom line for navbar
     for (int i = 0; i < max_lines && i + top_line < num_lines; i++) {
         move(i, 0);
         
@@ -137,13 +137,18 @@ void draw_screen() {
         clrtoeol();
     }
 
-
-
-
+    // Draw the bottom navbar
     attron(COLOR_PAIR(1));
-    mvprintw(LINES - 1, 0, "%-*s", COLS - 20, status_message);
-    mvprintw(LINES - 1, COLS - 20, "%-20s", mode == 'n' ? "EDEN" : "LODGER");
+    mvhline(LINES - 2, 0, ' ', COLS);
+    mvprintw(LINES - 2, 0, "%-*s", COLS - 40, filename);
+    mvprintw(LINES - 2, COLS - 40, "%s | %d,%d", mode == 'n' ? "NORMAL" : "INSERT", cursor_y + 1, cursor_x + 1);
     attroff(COLOR_PAIR(1));
+
+    // Draw the status message
+    attron(COLOR_PAIR(2));
+    mvhline(LINES - 1, 0, ' ', COLS);
+    mvprintw(LINES - 1, 0, "%s", status_message);
+    attroff(COLOR_PAIR(2));
 
     move(cursor_y - top_line, cursor_x);
     refresh();
