@@ -141,7 +141,7 @@ void draw_screen() {
     attron(COLOR_PAIR(1));
     mvhline(LINES - 2, 0, ' ', COLS);
     mvprintw(LINES - 2, 0, "%-*s", COLS - 40, filename);
-    mvprintw(LINES - 2, COLS - 40, "%s | %d,%d", mode == 'n' ? "eden" : "lodge", cursor_y + 1, cursor_x + 1);
+    mvprintw(LINES - 2, COLS - 40, "%s | %d,%d", mode == 'n' ? "EDEN" : "LODGE", cursor_y + 1, cursor_x + 1);
     attroff(COLOR_PAIR(1));
 
     // Draw the status message
