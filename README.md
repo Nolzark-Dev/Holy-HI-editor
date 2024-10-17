@@ -1,6 +1,7 @@
 # Holy HI Text Editor
 
-![HI TE](https://github.com/user-attachments/assets/5d785250-d06e-45e8-a432-6680c6521106)
+
+![f3](https://github.com/user-attachments/assets/51ece034-6667-4533-b833-c35450d9b3f6)
 
 
 Checklist
