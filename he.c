@@ -12,6 +12,23 @@
 #define MAX_COMPLETIONS 100
 #define MAX_COMPLETION_LENGTH 50
 
+
+
+void init_editor();
+void cleanup();
+void load_file();
+void save_file();
+void insert_char(char c);
+void delete_char();
+void insert_line();
+void draw_screen();
+void update_screen();
+void handle_normal_mode(int ch);
+void handle_insert_mode(int ch);
+void handle_exit(int save);  // Add this line
+
+
+
 char* lines[MAX_LINES];
 int num_lines = 0;
 int cursor_x = 0, cursor_y = 0;
@@ -24,6 +41,9 @@ char status_message[MAX_LINE_LENGTH];
 char* completions[MAX_COMPLETIONS];
 int num_completions = 0;
 int current_completion = -1;
+
+int last_cursor_x = 0, last_cursor_y = 0;
+int last_top_line = 0;
 
 void init_editor() {
     initscr();
@@ -67,7 +87,7 @@ void load_file() {
 void save_file() {
     FILE* file = fopen(filename, "w");
     if (file == NULL) {
-        snprintf(status_message, sizeof(status_message), "error: save unsuccessful");
+        snprintf(status_message, sizeof(status_message), "Error: save unsuccessful");
         return;
     }
 
@@ -76,7 +96,7 @@ void save_file() {
     }
 
     fclose(file);
-    snprintf(status_message, sizeof(status_message), "saved successfully");
+    snprintf(status_message, sizeof(status_message), "File saved successfully");
 }
 
 void insert_char(char c) {
@@ -110,8 +130,6 @@ void insert_line() {
     }
 }
 
-
-
 void draw_screen() {
     clear();
 
@@ -119,31 +137,25 @@ void draw_screen() {
     for (int i = 0; i < max_lines && i + top_line < num_lines; i++) {
         move(i, 0);
         
-        
         char* current_line = lines[i + top_line];
-        
         int line_length = strcspn(current_line, "\n");
         
-        // Create a temporary buffer to hold the line without the newline
         char temp_line[MAX_LINE_LENGTH];
         strncpy(temp_line, current_line, line_length);
-        temp_line[line_length] = '\0';  // Null-terminate the string
+        temp_line[line_length] = '\0';
         
-        // Apply syntax highlighting to the line
         highlight_syntax(stdscr, temp_line);
-        
-        
         clrtoeol();
     }
 
-    // bottom navbar
+    // Draw the bottom navbar
     attron(COLOR_PAIR(1));
     mvhline(LINES - 2, 0, ' ', COLS);
     mvprintw(LINES - 2, 0, "%-*s", COLS - 40, filename);
-    mvprintw(LINES - 2, COLS - 40, "%s | %d,%d", mode == 'n' ? "EDEN" : "LODGE", cursor_y + 1, cursor_x + 1);
+    mvprintw(LINES - 2, COLS - 40, "%s | %d,%d", mode == 'n' ? "EDEN" : "FORGE", cursor_y + 1, cursor_x + 1);
     attroff(COLOR_PAIR(1));
 
-    // status message
+    // Draw the status message
     attron(COLOR_PAIR(2));
     mvhline(LINES - 1, 0, ' ', COLS);
     mvprintw(LINES - 1, 0, "%s", status_message);
@@ -151,25 +163,70 @@ void draw_screen() {
 
     move(cursor_y - top_line, cursor_x);
     refresh();
+
+    // Update last known positions
+    last_cursor_x = cursor_x;
+    last_cursor_y = cursor_y;
+    last_top_line = top_line;
 }
 
-
-
-
-void handle_exit(int save) {
-    if (save) {
-        save_file();
+void update_screen() {
+    int max_lines = LINES - 2;
+    
+    // Update changed lines
+    if (last_top_line != top_line) {
+        // If scroll occurred, redraw the entire screen
+        draw_screen();
+        return;
     }
-    cleanup();
-    endwin();
-    exit(0);
+
+    // Update cursor line if it changed
+    if (last_cursor_y != cursor_y || last_top_line != top_line) {
+        int line_to_update = last_cursor_y - last_top_line;
+        if (line_to_update >= 0 && line_to_update < max_lines) {
+            move(line_to_update, 0);
+            clrtoeol();
+            char* current_line = lines[last_cursor_y];
+            int line_length = strcspn(current_line, "\n");
+            char temp_line[MAX_LINE_LENGTH];
+            strncpy(temp_line, current_line, line_length);
+            temp_line[line_length] = '\0';
+            highlight_syntax(stdscr, temp_line);
+        }
+
+        line_to_update = cursor_y - top_line;
+        if (line_to_update >= 0 && line_to_update < max_lines) {
+            move(line_to_update, 0);
+            clrtoeol();
+            char* current_line = lines[cursor_y];
+            int line_length = strcspn(current_line, "\n");
+            char temp_line[MAX_LINE_LENGTH];
+            strncpy(temp_line, current_line, line_length);
+            temp_line[line_length] = '\0';
+            highlight_syntax(stdscr, temp_line);
+        }
+    }
+
+    // Update navbar
+    attron(COLOR_PAIR(1));
+    mvprintw(LINES - 2, COLS - 40, "%s | %d,%d", mode == 'n' ? "EDEN" : "FORGE", cursor_y + 1, cursor_x + 1);
+    attroff(COLOR_PAIR(1));
+
+    // Move cursor to new position
+    move(cursor_y - top_line, cursor_x);
+    refresh();
+
+    // Update last known positions
+    last_cursor_x = cursor_x;
+    last_cursor_y = cursor_y;
+    last_top_line = top_line;
 }
 
 void handle_normal_mode(int ch) {
     switch (ch) {
         case 'i': 
             mode = 'i'; 
-            snprintf(status_message, sizeof(status_message), "--+ LODGE +--");
+            snprintf(status_message, sizeof(status_message), "--+FORGE+--");
             break;
         case 'h': if (cursor_x > 0) cursor_x--; break;
         case 'j': if (cursor_y < num_lines - 1) cursor_y++; break;
@@ -185,8 +242,7 @@ void handle_normal_mode(int ch) {
             else if (strcmp(command, "q") == 0) handle_exit(0);
             break;
         case 27: // ESC key
-	    clear();
-            handle_exit(1); // Save exit
+            handle_exit(1); // Save and exit
             break;
     }
 }
@@ -238,6 +294,14 @@ void handle_insert_mode(int ch) {
     }
 }
 
+void handle_exit(int save) {
+    if (save) {
+        save_file();
+    }
+    cleanup();
+    exit(0);
+}
+
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         printf("Usage: %s <filename>\n", argv[0]);
@@ -249,46 +313,28 @@ int main(int argc, char* argv[]) {
     load_file();
 
     int ch;
+    draw_screen(); // Initial full draw
     while (1) {
-        draw_screen();
         ch = getch();
 
         if (ch == KEY_RESIZE) {
-            // terminal resize
             clear();
-            refresh();
+            draw_screen(); // Full redraw on resize
             continue;
         }
 
-        if (ch == 27) { // ESC key
-            nodelay(stdscr, TRUE);
-            int next_ch = getch();
-            nodelay(stdscr, FALSE);
-            
-            if (next_ch == ERR) {
-                // Only ESC 
-                if (mode == 'i') {
-                    mode = 'n';
-                    snprintf(status_message, sizeof(status_message), "");
-                    if (cursor_x > 0) cursor_x--;
-                } else {
-                    handle_exit(1); // Save and exit
-                }
-            } else if (next_ch == 27) {
-                // Shift+ESC was pressed 
-                    clear();
-		    handle_exit(0); // Exit without saving
-            }
-        } else if (mode == 'n') {
+        if (mode == 'n') {
             handle_normal_mode(ch);
         } else if (mode == 'i') {
             handle_insert_mode(ch);
         }
 
         if (cursor_y < top_line) top_line = cursor_y;
-        if (cursor_y >= top_line + LINES - 1) top_line = cursor_y - LINES + 2;
+        if (cursor_y >= top_line + LINES - 2) top_line = cursor_y - LINES + 3;
+
+        update_screen(); // Use the new update_screen function instead of draw_screen
     }
 
-    clear();
+    cleanup();
     return 0;
 }
