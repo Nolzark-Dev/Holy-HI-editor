@@ -19,6 +19,8 @@ chmod +x install.sh
 ./install.sh
 ```
 
+Note:
+- You must have libncurses installed onto your system for a successful install
 
 ## Feature Checklist
 - [ ] fix jitttery screen
