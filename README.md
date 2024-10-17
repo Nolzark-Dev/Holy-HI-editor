@@ -4,10 +4,10 @@
 
 
 Checklist
-- [] fix jitttery screen
+- [ ] fix jitttery screen
 - [ ] add home screen properly
-- [] add copy and paste commands in eden mode (c and v)
-- [] improve syntax highlighting
-- [] add dd for deleting lines
-- [] modernise navbar
+- [ ] add copy and paste commands in eden mode (c and v)
+- [ ] improve syntax highlighting
+- [ ] add dd for deleting lines
+- [ ] modernise navbar
 - [x] add line numbers to left
