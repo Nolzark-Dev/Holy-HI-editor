@@ -1,11 +1,12 @@
-                                                                                 
+                                                                                   
+                                                                                   
      ___                                                                           
     /\  \                                                                          
-    \:\  \      ___       Commands:           Navigation                           
+    \:\  \      ___       Commands:           Navigation:                           
      \:\  \    /\__\        :q  quit                                               
- ___ /::\  \  /:/__/        :w  write            u      ↑                          
-/\  /:/\:\__\/::\  \                           h . k  ← . →                        
-\:\/:/  \/__/\/\:\  \__     esc exit lodge       j      ↓                          
+ ___ /::\  \  /:/__/        :w  write            u                                
+/\  /:/\:\__\/::\  \                           h . k  or arrow keys                         
+\:\/:/  \/__/\/\:\  \__     esc exit lodge       j                                
  \::/__/      ~~\:\/\__\    esc save+exit                                          
   \:\  \         \::/  /    shift+esc abort                                        
    \:\__\        /:/  /                                                            
