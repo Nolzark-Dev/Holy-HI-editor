@@ -10,4 +10,4 @@ Checklist
 - [] improve syntax highlighting
 - [] add dd for deleting lines
 - [] modernise navbar
-- [] add line numbers to left
+- [x] add line numbers to left
