@@ -119,10 +119,9 @@ void draw_screen() {
     for (int i = 0; i < max_lines && i + top_line < num_lines; i++) {
         move(i, 0);
         
-        // Get the current line
+        
         char* current_line = lines[i + top_line];
         
-        // Find the length of the line, excluding the newline character if present
         int line_length = strcspn(current_line, "\n");
         
         // Create a temporary buffer to hold the line without the newline
@@ -133,18 +132,18 @@ void draw_screen() {
         // Apply syntax highlighting to the line
         highlight_syntax(stdscr, temp_line);
         
-        // Move to the next line
+        
         clrtoeol();
     }
 
-    // Draw the bottom navbar
+    // bottom navbar
     attron(COLOR_PAIR(1));
     mvhline(LINES - 2, 0, ' ', COLS);
     mvprintw(LINES - 2, 0, "%-*s", COLS - 40, filename);
     mvprintw(LINES - 2, COLS - 40, "%s | %d,%d", mode == 'n' ? "EDEN" : "LODGE", cursor_y + 1, cursor_x + 1);
     attroff(COLOR_PAIR(1));
 
-    // Draw the status message
+    // status message
     attron(COLOR_PAIR(2));
     mvhline(LINES - 1, 0, ' ', COLS);
     mvprintw(LINES - 1, 0, "%s", status_message);
@@ -187,7 +186,7 @@ void handle_normal_mode(int ch) {
             break;
         case 27: // ESC key
 	    clear();
-            handle_exit(1); // Save and exit
+            handle_exit(1); // Save exit
             break;
     }
 }
@@ -255,7 +254,7 @@ int main(int argc, char* argv[]) {
         ch = getch();
 
         if (ch == KEY_RESIZE) {
-            // Handle terminal resize
+            // terminal resize
             clear();
             refresh();
             continue;
@@ -267,7 +266,7 @@ int main(int argc, char* argv[]) {
             nodelay(stdscr, FALSE);
             
             if (next_ch == ERR) {
-                // Only ESC was pressed
+                // Only ESC 
                 if (mode == 'i') {
                     mode = 'n';
                     snprintf(status_message, sizeof(status_message), "");
@@ -276,7 +275,7 @@ int main(int argc, char* argv[]) {
                     handle_exit(1); // Save and exit
                 }
             } else if (next_ch == 27) {
-                // Shift+ESC was pressed (it sends two ESC characters)
+                // Shift+ESC was pressed 
                     clear();
 		    handle_exit(0); // Exit without saving
             }
