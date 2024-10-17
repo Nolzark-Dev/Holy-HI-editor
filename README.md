@@ -4,8 +4,8 @@
 
 
 Checklist
-- [-] fix jitttery screen
-- [0] add home screen properly
+- [] fix jitttery screen
+- [ ] add home screen properly
 - [] add copy and paste commands in eden mode (c and v)
 - [] improve syntax highlighting
 - [] add dd for deleting lines
