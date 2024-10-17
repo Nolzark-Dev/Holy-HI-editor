@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <ncurses.h>
+#include "syntax_highlight.h"
 
 #define MAX_LINES 1000
 #define MAX_LINE_LENGTH 1000
@@ -33,6 +34,7 @@ void init_editor() {
     use_default_colors();
     init_pair(1, COLOR_BLACK, COLOR_YELLOW);
     init_pair(2, COLOR_WHITE, COLOR_WHITE);
+    init_syntax_highlight();
 }
 
 void cleanup() {
@@ -108,14 +110,35 @@ void insert_line() {
     }
 }
 
+
+
 void draw_screen() {
     clear();
 
-    int max_lines = LINES - 1;
+     int max_lines = LINES - 1;
     for (int i = 0; i < max_lines && i + top_line < num_lines; i++) {
-        mvprintw(i, 0, "%s", lines[i + top_line]);
+        move(i, 0);
+        
+        // Get the current line
+        char* current_line = lines[i + top_line];
+        
+        // Find the length of the line, excluding the newline character if present
+        int line_length = strcspn(current_line, "\n");
+        
+        // Create a temporary buffer to hold the line without the newline
+        char temp_line[MAX_LINE_LENGTH];
+        strncpy(temp_line, current_line, line_length);
+        temp_line[line_length] = '\0';  // Null-terminate the string
+        
+        // Apply syntax highlighting to the line
+        highlight_syntax(stdscr, temp_line);
+        
+        // Move to the next line
         clrtoeol();
     }
+
+
+
 
     attron(COLOR_PAIR(1));
     mvprintw(LINES - 1, 0, "%-*s", COLS - 20, status_message);
@@ -125,6 +148,9 @@ void draw_screen() {
     move(cursor_y - top_line, cursor_x);
     refresh();
 }
+
+
+
 
 void handle_exit(int save) {
     if (save) {
@@ -155,6 +181,7 @@ void handle_normal_mode(int ch) {
             else if (strcmp(command, "q") == 0) handle_exit(0);
             break;
         case 27: // ESC key
+	    clear();
             handle_exit(1); // Save and exit
             break;
     }
@@ -245,7 +272,8 @@ int main(int argc, char* argv[]) {
                 }
             } else if (next_ch == 27) {
                 // Shift+ESC was pressed (it sends two ESC characters)
-                handle_exit(0); // Exit without saving
+                    clear();
+		    handle_exit(0); // Exit without saving
             }
         } else if (mode == 'n') {
             handle_normal_mode(ch);
@@ -257,6 +285,6 @@ int main(int argc, char* argv[]) {
         if (cursor_y >= top_line + LINES - 1) top_line = cursor_y - LINES + 2;
     }
 
-clear();
+    clear();
     return 0;
 }
