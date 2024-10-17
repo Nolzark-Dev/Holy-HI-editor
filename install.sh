@@ -28,7 +28,7 @@ answer=$(echo "$answer" | tr '[:upper:]' '[:lower:]')
 # If the user agrees to proceed
 if [[ "$answer" == "y" || "$answer" == "yes" ]]; then
   echo "Starting the compilation and installation process..."
-
+fi
 
 
 
