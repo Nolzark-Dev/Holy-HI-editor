@@ -240,7 +240,26 @@ void handle_insert_mode(int ch) {
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
-        printf("Usage: %s <filename>\n", argv[0]);
+
+
+printf("     ___\n");
+printf("    /\\  \\\n");
+printf("    \\:\\  \\      ___       Commands:           Navigation:\n");
+printf("     \\:\\  \\    /\\__\\        :q  quit\n");
+printf(" ___ /::\\  \\  /:/__/        :w  write            u\n");
+printf("/\\  /:/\\:\\__\\/::\\  \\                           h . k  or arrow keys\n");
+printf("\\:\\/:/  \\/__/\\/\\:\\  \\__     esc exit lodge       j\n");
+printf(" \\::/__/      ~~\\:\\/\\__\\    esc save+exit\n");
+printf("  \\:\\  \\         \\::/  /    shift+esc abort\n");
+printf("   \\:\\__\\        /:/  /\n");
+printf("    \\/__/        \\/__/    Modes:\n");
+printf("                            eden: i.e command/normal mode\n");
+printf("  Welcome to the HI TE      lodge: i.e insert/write mode\n");
+
+
+
+
+
         return 1;
     }
 
