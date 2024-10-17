@@ -1,178 +1,210 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <termios.h>
-#include <unistd.h>
 #include <ctype.h>
+#include <ncurses.h>
 
 #define MAX_LINES 1000
-#define MAX_LINE_LENGTH 100
-#define MAX_FILENAME_LENGTH 256
+#define MAX_LINE_LENGTH 1000
+#define MAX_FILENAME 256
+#define MAX_CLIPBOARD 10000
+#define MAX_COMPLETIONS 100
+#define MAX_COMPLETION_LENGTH 50
 
-char lines[MAX_LINES][MAX_LINE_LENGTH];
-int line_count = 0;
-int current_line = 0;
-int current_column = 0;
-char clipboard[MAX_LINE_LENGTH] = "";
-char current_filename[MAX_FILENAME_LENGTH] = "";
+char* lines[MAX_LINES];
+int num_lines = 0;
+int cursor_x = 0, cursor_y = 0;
+int top_line = 0;
+char filename[MAX_FILENAME];
+char clipboard[MAX_CLIPBOARD];
+char mode = 'n'; // 'n' for normal, 'i' for insert
+char status_message[MAX_LINE_LENGTH];
 
-enum Mode { NORMAL, VIEW };
-enum Mode current_mode = NORMAL;
+char* completions[MAX_COMPLETIONS];
+int num_completions = 0;
+int current_completion = -1;
 
-struct termios orig_termios;
-
-// ANSI color codes and screen clearing
-#define RESET "\x1b[0m"
-#define BLUE "\x1b[34m"
-#define GREEN "\x1b[32m"
-#define MAGENTA "\x1b[35m"
-#define CLEAR_SCREEN "\x1b[2J\x1b[H"
-
-void disable_raw_mode() {
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+void init_editor() {
+    initscr();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+    start_color();
+    use_default_colors();
+    init_pair(1, COLOR_BLACK, COLOR_YELLOW);
+    init_pair(2, COLOR_WHITE, COLOR_WHITE);
 }
 
-void enable_raw_mode() {
-    tcgetattr(STDIN_FILENO, &orig_termios);
-    atexit(disable_raw_mode);
-    struct termios raw = orig_termios;
-    raw.c_lflag &= ~(ECHO | ICANON);
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
-}
-
-int read_key() {
-    char c;
-    read(STDIN_FILENO, &c, 1);
-    if (c == '\x1b') {
-        char seq[3];
-        if (read(STDIN_FILENO, &seq[0], 1) != 1) return '\x1b';
-        if (read(STDIN_FILENO, &seq[1], 1) != 1) return '\x1b';
-        if (seq[0] == '[') {
-            switch (seq[1]) {
-                case 'A': return 'k';  // Up arrow
-                case 'B': return 'j';  // Down arrow
-                case 'C': return 'l';  // Right arrow
-                case 'D': return 'h';  // Left arrow
-            }
-        }
-        return '\x1b';
+void cleanup() {
+    for (int i = 0; i < num_lines; i++) {
+        free(lines[i]);
     }
-    return c;
+    for (int i = 0; i < num_completions; i++) {
+        free(completions[i]);
+    }
+    endwin();
 }
 
-void print_syntax_highlighted(const char* line) {
-    char* keywords[] = {"if", "else", "for", "while", "return", "int", "char", "void", "struct", "typedef", NULL};
-    char word[MAX_LINE_LENGTH] = "";
-    int word_len = 0;
-
-    for (int i = 0; line[i] != '\0'; i++) {
-        if (isalnum(line[i]) || line[i] == '_') {
-            word[word_len++] = line[i];
-            word[word_len] = '\0';
-        } else {
-            int is_keyword = 0;
-            for (int j = 0; keywords[j] != NULL; j++) {
-                if (strcmp(word, keywords[j]) == 0) {
-                    printf("%s%s%s", BLUE, word, RESET);
-                    is_keyword = 1;
-                    break;
-                }
-            }
-            if (!is_keyword) {
-                printf("%s", word);
-            }
-            word_len = 0;
-            word[0] = '\0';
-
-            if (line[i] == '"') {
-                printf("%s%c", GREEN, line[i]);
-                i++;
-                while (line[i] != '"' && line[i] != '\0') {
-                    printf("%c", line[i]);
-                    i++;
-                }
-                if (line[i] == '"') {
-                    printf("%c%s", line[i], RESET);
-                }
-            } else if (line[i] == '/' && line[i+1] == '/') {
-                printf("%s%s%s", MAGENTA, &line[i], RESET);
-                break;
-            } else {
-                printf("%c", line[i]);
-            }
-        }
-    }
-    if (word_len > 0) {
-        printf("%s", word);
-    }
-}
-
-void print_line(int line_number) {
-    if (line_number >= 0 && line_number < line_count) {
-        printf("%3d ", line_number + 1);
-        print_syntax_highlighted(lines[line_number]);
-        printf("\n");
-    }
-}
-
-void load_file(const char* filename) {
+void load_file() {
     FILE* file = fopen(filename, "r");
     if (file == NULL) {
-        printf("Error: Unable to open file for reading.\n");
-        exit(1);
+        lines[0] = strdup("");
+        num_lines = 1;
+        return;
     }
-    line_count = 0;
-    while (fgets(lines[line_count], MAX_LINE_LENGTH, file) && line_count < MAX_LINES) {
-        line_count++;
+
+    char buffer[MAX_LINE_LENGTH];
+    while (fgets(buffer, sizeof(buffer), file) != NULL && num_lines < MAX_LINES) {
+        buffer[strcspn(buffer, "\n")] = 0;
+        lines[num_lines++] = strdup(buffer);
     }
+
     fclose(file);
-    strncpy(current_filename, filename, MAX_FILENAME_LENGTH - 1);
-    current_filename[MAX_FILENAME_LENGTH - 1] = '\0';
 }
 
-void handle_normal_mode(int c) {
-    switch (c) {
-        case 'j':
-            if (current_line < line_count - 1) current_line++;
+void save_file() {
+    FILE* file = fopen(filename, "w");
+    if (file == NULL) {
+        snprintf(status_message, sizeof(status_message), "error: save unsuccessful");
+        return;
+    }
+
+    for (int i = 0; i < num_lines; i++) {
+        fprintf(file, "%s\n", lines[i]);
+    }
+
+    fclose(file);
+    snprintf(status_message, sizeof(status_message), "saved successfully");
+}
+
+void insert_char(char c) {
+    int len = strlen(lines[cursor_y]);
+    if (len < MAX_LINE_LENGTH - 1) {
+        memmove(&lines[cursor_y][cursor_x + 1], &lines[cursor_y][cursor_x], len - cursor_x + 1);
+        lines[cursor_y][cursor_x] = c;
+        cursor_x++;
+    }
+}
+
+void delete_char() {
+    int len = strlen(lines[cursor_y]);
+    if (cursor_x < len) {
+        memmove(&lines[cursor_y][cursor_x], &lines[cursor_y][cursor_x + 1], len - cursor_x);
+    } else if (cursor_y < num_lines - 1) {
+        strcat(lines[cursor_y], lines[cursor_y + 1]);
+        free(lines[cursor_y + 1]);
+        memmove(&lines[cursor_y + 1], &lines[cursor_y + 2], (num_lines - cursor_y - 2) * sizeof(char*));
+        num_lines--;
+    }
+}
+
+void insert_line() {
+    if (num_lines < MAX_LINES - 1) {
+        memmove(&lines[cursor_y + 2], &lines[cursor_y + 1], (num_lines - cursor_y - 1) * sizeof(char*));
+        lines[cursor_y + 1] = strdup("");
+        num_lines++;
+        cursor_y++;
+        cursor_x = 0;
+    }
+}
+
+void draw_screen() {
+    clear();
+
+    int max_lines = LINES - 1;
+    for (int i = 0; i < max_lines && i + top_line < num_lines; i++) {
+        mvprintw(i, 0, "%s", lines[i + top_line]);
+        clrtoeol();
+    }
+
+    attron(COLOR_PAIR(1));
+    mvprintw(LINES - 1, 0, "%-*s", COLS - 20, status_message);
+    mvprintw(LINES - 1, COLS - 20, "%-20s", mode == 'n' ? "EDEN" : "LODGER");
+    attroff(COLOR_PAIR(1));
+
+    move(cursor_y - top_line, cursor_x);
+    refresh();
+}
+
+void handle_exit(int save) {
+    if (save) {
+        save_file();
+    }
+    cleanup();
+    endwin();
+    exit(0);
+}
+
+void handle_normal_mode(int ch) {
+    switch (ch) {
+        case 'i': 
+            mode = 'i'; 
+            snprintf(status_message, sizeof(status_message), "--+ LODGE +--");
             break;
-        case 'k':
-            if (current_line > 0) current_line--;
+        case 'h': if (cursor_x > 0) cursor_x--; break;
+        case 'j': if (cursor_y < num_lines - 1) cursor_y++; break;
+        case 'u': if (cursor_y > 0) cursor_y--; break;
+        case 'k': if (cursor_x < strlen(lines[cursor_y])) cursor_x++; break;
+        case ':':
+            mvprintw(LINES - 1, 0, ":");
+            echo();
+            char command[20];
+            getstr(command);
+            noecho();
+            if (strcmp(command, "w") == 0) save_file();
+            else if (strcmp(command, "q") == 0) handle_exit(0);
             break;
-        case 'h':
-            if (current_column > 0) current_column--;
+        case 27: // ESC key
+            handle_exit(1); // Save and exit
             break;
-        case 'l':
-            if (current_column < strlen(lines[current_line]) - 1) current_column++;
+    }
+}
+
+void handle_insert_mode(int ch) {
+    switch (ch) {
+        case 27: // ESC key
+            mode = 'n'; 
+            snprintf(status_message, sizeof(status_message), "");
+            if (cursor_x > 0) cursor_x--;
             break;
-        case 'y':
-            if (line_count > 0) {
-                strncpy(clipboard, lines[current_line], MAX_LINE_LENGTH);
-                printf("Line copied.\n");
+        case KEY_BACKSPACE:
+        case 127:
+            if (cursor_x > 0) {
+                memmove(&lines[cursor_y][cursor_x - 1], &lines[cursor_y][cursor_x], strlen(lines[cursor_y]) - cursor_x + 1);
+                cursor_x--;
+            } else if (cursor_y > 0) {
+                cursor_x = strlen(lines[cursor_y - 1]);
+                strcat(lines[cursor_y - 1], lines[cursor_y]);
+                free(lines[cursor_y]);
+                memmove(&lines[cursor_y], &lines[cursor_y + 1], (num_lines - cursor_y - 1) * sizeof(char*));
+                num_lines--;
+                cursor_y--;
             }
             break;
-        case 'p':
-            printf("Paste operation not allowed in read-only mode.\n");
+        case KEY_DC:
+            delete_char();
             break;
+        case KEY_ENTER:
+        case 10:
+            insert_line();
+            break;
+        case KEY_LEFT:
+            if (cursor_x > 0) cursor_x--;
+            break;
+        case KEY_RIGHT:
+            if (cursor_x < strlen(lines[cursor_y])) cursor_x++;
+            break;
+        case KEY_UP:
+            if (cursor_y > 0) cursor_y--;
+            break;
+        case KEY_DOWN:
+            if (cursor_y < num_lines - 1) cursor_y++;
+            break;
+        default:
+            if (isprint(ch)) {
+                insert_char(ch);
+            }
     }
-}
-
-void refresh_screen() {
-    printf(CLEAR_SCREEN);
-    printf("Read-only 'ed' text editor (inspired by TempleOS and Vim)\n");
-    printf("Viewing file: %s\n", current_filename);
-    printf("Navigation: j (down), k (up), h (left), l (right)\n");
-    printf("Commands: y (copy), p (paste - disabled)\n");
-    printf("Press q to quit\n");
-    printf("-- NORMAL --\n\n");
-
-    int start_line = (current_line > 10) ? current_line - 10 : 0;
-    int end_line = (start_line + 20 < line_count) ? start_line + 20 : line_count;
-
-    for (int i = start_line; i < end_line; i++) {
-        print_line(i);
-    }
-
-    printf("\nCurrent position: %d,%d\n", current_line + 1, current_column + 1);
 }
 
 int main(int argc, char* argv[]) {
@@ -181,22 +213,49 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    load_file(argv[1]);
-    enable_raw_mode();
+    strncpy(filename, argv[1], sizeof(filename) - 1);
+    init_editor();
+    load_file();
 
+    int ch;
     while (1) {
-        refresh_screen();
-        
-        int c = read_key();
+        draw_screen();
+        ch = getch();
 
-        if (c == 'q') {
-            break;
-        } else {
-            handle_normal_mode(c);
+        if (ch == KEY_RESIZE) {
+            // Handle terminal resize
+            clear();
+            refresh();
+            continue;
         }
+
+        if (ch == 27) { // ESC key
+            nodelay(stdscr, TRUE);
+            int next_ch = getch();
+            nodelay(stdscr, FALSE);
+            
+            if (next_ch == ERR) {
+                // Only ESC was pressed
+                if (mode == 'i') {
+                    mode = 'n';
+                    snprintf(status_message, sizeof(status_message), "");
+                    if (cursor_x > 0) cursor_x--;
+                } else {
+                    handle_exit(1); // Save and exit
+                }
+            } else if (next_ch == 27) {
+                // Shift+ESC was pressed (it sends two ESC characters)
+                handle_exit(0); // Exit without saving
+            }
+        } else if (mode == 'n') {
+            handle_normal_mode(ch);
+        } else if (mode == 'i') {
+            handle_insert_mode(ch);
+        }
+
+        if (cursor_y < top_line) top_line = cursor_y;
+        if (cursor_y >= top_line + LINES - 1) top_line = cursor_y - LINES + 2;
     }
 
-    disable_raw_mode();
-    printf(CLEAR_SCREEN);
     return 0;
 }
