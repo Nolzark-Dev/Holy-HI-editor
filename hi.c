@@ -199,40 +199,65 @@ void paste_lines() {
     snprintf(status_message, sizeof(status_message), "Pasted %d lines", clipboard_end - clipboard_start + 1);
 }
 
+void delete_line() {
+    if (num_lines > 1) {
+        free(lines[cursor_y]);
+        memmove(&lines[cursor_y], &lines[cursor_y + 1], (num_lines - cursor_y - 1) * sizeof(char*));
+        num_lines--;
+        if (cursor_y == num_lines) {
+            cursor_y--;
+        }
+        cursor_x = 0;
+        snprintf(status_message, sizeof(status_message), "Deleted line %d", cursor_y + 1);
+    } else {
+        lines[0] = strdup("");
+        cursor_x = 0;
+        snprintf(status_message, sizeof(status_message), "Deleted line content");
+    }
+}
+
 void handle_normal_mode(int ch) {
-    switch (ch) {
-        case 'i': 
-            mode = 'i'; 
-            snprintf(status_message, sizeof(status_message), "--+ LODGE +--");
-            break;
-        case 'h': if (cursor_x > 0) cursor_x--; break;
-        case 'j': if (cursor_y < num_lines - 1) cursor_y++; break;
-        case 'u': if (cursor_y > 0) cursor_y--; break;
-        case 'k': if (cursor_x < strlen(lines[cursor_y])) cursor_x++; break;
-        case ':':
-            mvprintw(LINES - 1, 0, ":");
-            echo();
-            char command[20];
-            getstr(command);
-            noecho();
-            if (strcmp(command, "w") == 0) save_file();
-            else if (strcmp(command, "q") == 0) handle_exit(0);
-            else if (strncmp(command, "c", 1) == 0) {
-                int start = cursor_y, end = cursor_y;
-                if (sscanf(command + 1, "%d %d", &start, &end) == 2) {
-                    copy_lines(start - 1, end - 1);  // Convert to 0-based index
-                } else {
-                    copy_lines(cursor_y, cursor_y);
+    static int last_ch = 0;
+    
+    if (last_ch == 'd' && ch == 'd') {
+        delete_line();
+        last_ch = 0;
+    } else {
+        switch (ch) {
+            case 'i': 
+                mode = 'i'; 
+                snprintf(status_message, sizeof(status_message), "--+ LODGE +--");
+                break;
+            case 'h': if (cursor_x > 0) cursor_x--; break;
+            case 'j': if (cursor_y < num_lines - 1) cursor_y++; break;
+            case 'k': if (cursor_y > 0) cursor_y--; break;
+            case 'l': if (cursor_x < strlen(lines[cursor_y])) cursor_x++; break;
+            case ':':
+                mvprintw(LINES - 1, 0, ":");
+                echo();
+                char command[20];
+                getstr(command);
+                noecho();
+                if (strcmp(command, "w") == 0) save_file();
+                else if (strcmp(command, "q") == 0) handle_exit(0);
+                else if (strncmp(command, "c", 1) == 0) {
+                    int start = cursor_y, end = cursor_y;
+                    if (sscanf(command + 1, "%d %d", &start, &end) == 2) {
+                        copy_lines(start - 1, end - 1);  // Convert to 0-based index
+                    } else {
+                        copy_lines(cursor_y, cursor_y);
+                    }
                 }
-            }
-            else if (strcmp(command, "v") == 0) {
-                paste_lines();
-            }
-            break;
-        case 27: // ESC key
-            clear();
-            handle_exit(1); // Save exit
-            break;
+                else if (strcmp(command, "v") == 0) {
+                    paste_lines();
+                }
+                break;
+            case 27: // ESC key
+                clear();
+                handle_exit(1); // Save exit
+                break;
+        }
+        last_ch = ch;
     }
 }
 
@@ -289,8 +314,8 @@ int main(int argc, char* argv[]) {
         printf("    /\\  \\\n");
         printf("    \\:\\  \\      ___       Commands:           Navigation:\n");
         printf("     \\:\\  \\    /\\__\\        :q  quit\n");
-        printf(" ___ /::\\  \\  /:/__/        :w  write            u\n");
-        printf("/\\  /:/\\:\\__\\/::\\  \\                           h . k  or arrow keys\n");
+        printf(" ___ /::\\  \\  /:/__/        :w  write            k\n");
+        printf("/\\  /:/\\:\\__\\/::\\  \\        dd  delete line    h l  or arrow keys\n");
         printf("\\:\\/:/  \\/__/\\/\\:\\  \\__     esc exit lodge       j\n");
         printf(" \\::/__/      ~~\\:\\/\\__\\    esc save+exit\n");
         printf("  \\:\\  \\         \\::/  /    shift+esc abort\n");
