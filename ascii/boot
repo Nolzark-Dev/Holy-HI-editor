@@ -1,18 +1,21 @@
                                                                                    
-                                                                                   
-     ___                                                                           
-    /\  \                                                                          
-    \:\  \      ___       Commands:           Navigation:                           
-     \:\  \    /\__\        :q  quit                                               
- ___ /::\  \  /:/__/        :w  write            u                                
-/\  /:/\:\__\/::\  \                           h . k  or arrow keys                         
-\:\/:/  \/__/\/\:\  \__     esc exit lodge       j                                
- \::/__/      ~~\:\/\__\    esc save+exit                                          
-  \:\  \         \::/  /    shift+esc abort                                        
-   \:\__\        /:/  /                                                            
-    \/__/        \/__/    Modes:                                                   
-                            eden: i.e command/normal mode                          
-  Welcome to the HI TE      lodge: i.e insert/write mode                           
-                                                                                   
-                                                                                   
-                                                                                   
+                                                                                            
+                                                                                            
+                                                                                            
+                         Commands:           Navigation:                                    
+     ___                   :q  quit                                                         
+    /\  \                  :w  write            u                                           
+    \:\  \      ___                           h . k  or arrow keys                          
+     \:\  \    /\__\       esc exit lodge       j                                           
+ ___ /::\  \  /:/__/       esc save+exit                                                    
+/\  /:/\:\__\/::\  \       shift+esc abort                                                  
+\:\/:/  \/__/\/\:\  \__                                                                     
+ \::/__/      ~~\:\/\__\   :c copies line                                                   
+  \:\  \         \::/  /   :c a b copies selected lines                                     
+   \:\__\        /:/  /    :v pastes clipboard                                              
+    \/__/        \/__/                                                                      
+                           dd deletes line                                                  
+  Welcome to the HI TE                                                                      
+                         Modes:                                                             
+                           eden: i.e command/normal mode                                    
+                           lodge: i.e insert/write mode                                     
