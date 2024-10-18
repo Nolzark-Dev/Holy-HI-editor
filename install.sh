@@ -54,3 +54,7 @@ echo "hi has been successfully installed in /usr/local/bin/"
 
 echo "Installation complete. You can now run the program using 'hi'."
 
+# If the user declines
+else
+  echo "Installation aborted by the user."
+fi
