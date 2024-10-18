@@ -230,8 +230,8 @@ void handle_normal_mode(int ch) {
                 break;
             case 'h': if (cursor_x > 0) cursor_x--; break;
             case 'j': if (cursor_y < num_lines - 1) cursor_y++; break;
-            case 'k': if (cursor_y > 0) cursor_y--; break;
-            case 'l': if (cursor_x < strlen(lines[cursor_y])) cursor_x++; break;
+            case 'u': if (cursor_y > 0) cursor_y--; break;
+            case 'k': if (cursor_x < strlen(lines[cursor_y])) cursor_x++; break;
             case ':':
                 mvprintw(LINES - 1, 0, ":");
                 echo();
