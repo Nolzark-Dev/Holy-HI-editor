@@ -19,6 +19,8 @@ int cursor_x = 0, cursor_y = 0;
 int top_line = 0;
 char filename[MAX_FILENAME];
 char clipboard[MAX_CLIPBOARD];
+int clipboard_start = -1;
+int clipboard_end = -1;
 char mode = 'n'; // 'n' for normal, 'i' for insert
 char status_message[MAX_LINE_LENGTH];
 
@@ -165,6 +167,38 @@ void handle_exit(int save) {
     exit(0);
 }
 
+void copy_lines(int start, int end) {
+    clipboard[0] = '\0';
+    for (int i = start; i <= end && i < num_lines; i++) {
+        if (strlen(clipboard) + strlen(lines[i]) + 2 < MAX_CLIPBOARD) {
+            strcat(clipboard, lines[i]);
+            strcat(clipboard, "\n");
+        }
+    }
+    clipboard_start = start;
+    clipboard_end = end;
+    snprintf(status_message, sizeof(status_message), "Copied lines %d to %d", start + 1, end + 1);
+}
+
+void paste_lines() {
+    if (clipboard_start == -1 || clipboard_end == -1) {
+        snprintf(status_message, sizeof(status_message), "Nothing to paste");
+        return;
+    }
+
+    char* token = strtok(clipboard, "\n");
+    while (token != NULL) {
+        if (num_lines < MAX_LINES - 1) {
+            memmove(&lines[cursor_y + 2], &lines[cursor_y + 1], (num_lines - cursor_y - 1) * sizeof(char*));
+            lines[cursor_y + 1] = strdup(token);
+            num_lines++;
+            cursor_y++;
+        }
+        token = strtok(NULL, "\n");
+    }
+    snprintf(status_message, sizeof(status_message), "Pasted %d lines", clipboard_end - clipboard_start + 1);
+}
+
 void handle_normal_mode(int ch) {
     switch (ch) {
         case 'i': 
@@ -183,6 +217,17 @@ void handle_normal_mode(int ch) {
             noecho();
             if (strcmp(command, "w") == 0) save_file();
             else if (strcmp(command, "q") == 0) handle_exit(0);
+            else if (strncmp(command, "c", 1) == 0) {
+                int start = cursor_y, end = cursor_y;
+                if (sscanf(command + 1, "%d %d", &start, &end) == 2) {
+                    copy_lines(start - 1, end - 1);  // Convert to 0-based index
+                } else {
+                    copy_lines(cursor_y, cursor_y);
+                }
+            }
+            else if (strcmp(command, "v") == 0) {
+                paste_lines();
+            }
             break;
         case 27: // ESC key
             clear();
@@ -240,26 +285,19 @@ void handle_insert_mode(int ch) {
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
-
-
-printf("     ___\n");
-printf("    /\\  \\\n");
-printf("    \\:\\  \\      ___       Commands:           Navigation:\n");
-printf("     \\:\\  \\    /\\__\\        :q  quit\n");
-printf(" ___ /::\\  \\  /:/__/        :w  write            u\n");
-printf("/\\  /:/\\:\\__\\/::\\  \\                           h . k  or arrow keys\n");
-printf("\\:\\/:/  \\/__/\\/\\:\\  \\__     esc exit lodge       j\n");
-printf(" \\::/__/      ~~\\:\\/\\__\\    esc save+exit\n");
-printf("  \\:\\  \\         \\::/  /    shift+esc abort\n");
-printf("   \\:\\__\\        /:/  /\n");
-printf("    \\/__/        \\/__/    Modes:\n");
-printf("                            eden: i.e command/normal mode\n");
-printf("  Welcome to the HI TE      lodge: i.e insert/write mode\n");
-
-
-
-
-
+        printf("     ___\n");
+        printf("    /\\  \\\n");
+        printf("    \\:\\  \\      ___       Commands:           Navigation:\n");
+        printf("     \\:\\  \\    /\\__\\        :q  quit\n");
+        printf(" ___ /::\\  \\  /:/__/        :w  write            u\n");
+        printf("/\\  /:/\\:\\__\\/::\\  \\                           h . k  or arrow keys\n");
+        printf("\\:\\/:/  \\/__/\\/\\:\\  \\__     esc exit lodge       j\n");
+        printf(" \\::/__/      ~~\\:\\/\\__\\    esc save+exit\n");
+        printf("  \\:\\  \\         \\::/  /    shift+esc abort\n");
+        printf("   \\:\\__\\        /:/  /\n");
+        printf("    \\/__/        \\/__/    Modes:\n");
+        printf("                            eden: i.e command/normal mode\n");
+        printf("  Welcome to the HI TE      lodge: i.e insert/write mode\n");
         return 1;
     }
 
