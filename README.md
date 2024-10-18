@@ -1,7 +1,8 @@
 # !!WIP!! Holy HI Text Editor
 
+![looo](https://github.com/user-attachments/assets/84cc8bc0-eebf-4d58-95f5-1b7bb92b294d)
 
-![f3](https://github.com/user-attachments/assets/51ece034-6667-4533-b833-c35450d9b3f6)
+
 
 ## Installation
 
