@@ -28,5 +28,4 @@ Note:
 - [x] add copy and paste commands in eden mode (c and v)
 - [ ] improve syntax highlighting
 - [x] add dd for deleting lines
-- [ ] modernise navbar
 - [x] add line numbers to left
